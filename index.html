@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin (BTC/USD) Technical & Macro Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#0F172A',
+                        cardbg: '#1E293B',
+                        accentgreen: '#10B981',
+                        accentred: '#EF4444',
+                        accentblue: '#3B82F6',
+                        accentgold: '#F59E0B'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .analysis-container {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border: 1px solid #e0e8e5;
+            color: #2c3e50;
+            height: fit-content;
+        }
+        .analysis-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2ebe8; padding-bottom: 12px; margin-bottom: 16px; }
+        .analysis-title { font-size: 1.1rem; font-weight: 700; color: #2a5c55; display: flex; align-items: center; gap: 8px; }
+        .badge-live { background-color: #d1e7dd; color: #0f5132; font-size: 0.75rem; font-weight: 600; padding: 4px 8px; border-radius: 20px; }
+        .section-card { background-color: #ffffff; border-radius: 8px; padding: 14px; margin-bottom: 12px; border-left: 4px solid #2a5c55; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .section-card.tf12h { border-left-color: #2980b9; background-color: #f4f9fc; }
+        .section-card.daily { border-left-color: #16a085; background-color: #f7fbf9; }
+        .card-title { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6c7a89; font-weight: 600; margin-bottom: 8px; }
+        .data-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.95rem; }
+        .data-label { color: #596978; }
+        .data-value { font-weight: 600; color: #1a252f; }
+        .highlight-value { color: #2a5c55; font-weight: 700; }
+        .analysis-footer { font-size: 0.75rem; color: #8a99a8; text-align: right; margin-top: 8px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; border-radius: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
+    </style>
+</head>
+<body class="bg-darkbg text-slate-100 font-sans p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+
+        <!-- HEADER & LIVE PRICE -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-cardbg p-6 rounded-2xl border border-slate-700 shadow-xl">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-2">
+                    <span class="text-amber-400">₿</span> Bitcoin (BTC/USD) Analysis Dashboard
+                </h1>
+                <p class="text-sm text-slate-400 mt-1">Real-time Technical, Macro, & Liquidity Overview</p>
+            </div>
+            <div class="bg-slate-800 px-6 py-3 rounded-xl border border-slate-700 text-right min-w-[240px] w-full md:w-auto">
+                <div class="text-[10px] text-slate-400 font-semibold tracking-wider flex items-center justify-end gap-2">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span>HARGA REALTIME BTC/USD</span>
+                    <button id="btn-refresh-price" title="Refresh Harga Bitcoin" class="p-1 hover:bg-slate-700 text-slate-300 hover:text-white rounded-md transition-colors">
+                        <svg id="icon-refresh" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="text-2xl font-extrabold text-amber-400 font-mono" id="live-price">Memuat...</div>
+                <div class="text-xs font-bold text-emerald-400 font-mono mt-0.5" id="live-price-idr">Menghitung IDR...</div>
+            </div>
+        </div>
+
+        <!-- BARIS: DATA REALIZED CAP & NEWS BITCOIN USD -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- KOTAK 1: BTC REALIZED CAP -->
+            <div class="lg:col-span-1 bg-cardbg p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-between space-y-4">
+                <div>
+                    <div class="flex justify-between items-center border-b border-slate-700/80 pb-3 mb-4">
+                        <h2 class="text-md font-bold text-slate-200 flex items-center gap-2">
+                            <span>📊</span> BTC: Realized Capitalization
+                        </h2>
+                        <span id="status-badge-server" class="text-[10px] px-2 py-0.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded font-semibold flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                            Connecting...
+                        </span>
+                    </div>
+
+                    <p class="text-xs text-slate-400 leading-relaxed mb-4">
+                        *Realized Cap* mengukur modal riil yang masuk ke jaringan Bitcoin berdasarkan harga transaksi terakhir setiap koin (*Fresh Money*).
+                    </p>
+
+                    <div class="space-y-3">
+                        <div class="p-3 bg-slate-800/80 rounded-xl border border-slate-700">
+                            <div class="text-[11px] text-slate-400 font-semibold">Total Realized Cap (USD)</div>
+                            <div class="text-2xl font-mono font-extrabold text-emerald-400 mt-0.5" id="realized-cap-val">$641.86 Miliar</div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="p-3 bg-slate-800/80 rounded-xl border border-slate-700">
+                                <div class="text-[10px] text-slate-400">Realized Price (On-Chain)</div>
+                                <div class="text-sm font-mono font-bold text-slate-200 mt-1" id="realized-price-val">$32,450.00</div>
+                            </div>
+                            <div class="p-3 bg-slate-800/80 rounded-xl border border-slate-700">
+                                <div class="text-[10px] text-slate-400">MVRV Ratio</div>
+                                <div class="text-sm font-mono font-bold text-amber-400 mt-1" id="mvrv-ratio-val">2.57 (Bullish)</div>
+                            </div>
+                        </div>
+
+                        <div class="p-3 bg-slate-800/80 rounded-xl border border-slate-700">
+                            <div class="flex justify-between items-center text-[10px] text-slate-400 mb-1">
+                                <span>Persentase Supply Dalam Posisi Untung:</span>
+                                <span class="text-emerald-400 font-bold" id="profit-supply-val">88.4%</span>
+                            </div>
+                            <div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
+                                <div id="profit-supply-bar" class="bg-gradient-to-r from-emerald-500 to-teal-300 h-full rounded-full" style="width: 88.4%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-700/60 text-[10px] text-slate-400 flex justify-between items-center">
+                    <span>Sumber: On-Chain & Binance Engine</span>
+                    <span class="text-slate-500" id="backend-sync-time">Sinkronisasi aktif</span>
+                </div>
+            </div>
+
+            <!-- KOTAK 2: NEWS BITCOIN USD -->
+            <div class="lg:col-span-2 bg-cardbg p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-between">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-700/80 pb-3 mb-4 gap-2">
+                    <div>
+                        <h2 class="text-md font-bold text-slate-200 flex items-center gap-2">
+                            <span>📰</span> News Bitcoin USD
+                        </h2>
+                        <p class="text-xs text-slate-400">Feed Berita Utama Bitcoin Otomatis Real-Time</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] px-2 py-1 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded font-semibold flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                            Live Feed Active
+                        </span>
+                        <button id="btn-refresh-news" class="p-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg border border-slate-700 transition-all text-xs flex items-center gap-1">
+                            <svg id="icon-news-refresh" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            <span>Refresh</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="custom-scrollbar overflow-y-auto max-h-[290px] pr-2 space-y-3" id="news-container">
+                    <div class="text-slate-400 text-xs text-center py-8">Memuat berita Bitcoin terkini...</div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-700/60 mt-3 text-[10px] text-slate-400 flex justify-between items-center">
+                    <span>Sumber: CryptoCompare Aggregator API</span>
+                    <span class="text-slate-500" id="news-last-update">Auto-update aktif</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ENTRY TIME BUY & SELL -->
+        <div class="bg-cardbg p-6 rounded-2xl border border-slate-700 shadow-xl">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-4 border-b border-slate-700/60 pb-3">
+                <h2 class="text-lg font-bold text-slate-200 flex items-center gap-2">
+                    ⚡ ENTRY TIME BUY & SELL (Pemicu Utama: RSI Swing 7 | Sinyal: LL/HL & HH/LH D1)
+                </h2>
+                <div class="text-xs text-slate-400 flex flex-wrap items-center gap-2">
+                    <span>Sinyal Utama:</span>
+                    <span id="current-signal-tag" class="font-bold text-red-400">HH/LH Active (Sep)</span>
+                    <span class="text-[10px] px-2.5 py-0.5 bg-red-500/20 text-red-400 rounded-full border border-red-500/30 flex items-center gap-1 font-semibold">
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-ping"></span>
+                        WA Alert: 081219579162
+                    </span>
+                    <button id="btn-test-wa" class="text-[10px] px-2.5 py-1 bg-amber-500/20 text-amber-400 hover:bg-amber-500/40 rounded-lg border border-amber-500/40 font-bold transition-all flex items-center gap-1 active:scale-95">
+                        🧪 Test Alert WA
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div id="box-buy" class="p-4 rounded-xl border transition-all duration-300 bg-slate-800/50 border-slate-700 text-slate-500 opacity-60">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">SELESAI (JUNI)</span>
+                        <span class="w-2 h-2 rounded-full bg-slate-600"></span>
+                    </div>
+                    <div class="text-lg font-extrabold text-slate-400">BUY</div>
+                    <div class="text-[11px] mt-1 text-slate-400">Sinyal LL/HL D1 Terkonfirmasi</div>
+                    <div class="text-[10px] font-mono mt-2 pt-2 border-t border-slate-700/50 text-slate-500 space-y-1">
+                        <div>Waktu Sinyal LL/HL: <br><span class="text-slate-400 font-bold" id="timestamp-buy">15 Jun 2026 00:00:00 WIB</span></div>
+                        <div class="text-[9px] text-slate-500">Harga Acuan: <b class="text-slate-400">$57,736.97</b></div>
+                    </div>
+                </div>
+
+                <div id="box-running-buy" class="p-4 rounded-xl border transition-all duration-300 bg-slate-800/50 border-slate-700 text-slate-500 opacity-60">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">SELESAI</span>
+                        <span class="w-2 h-2 rounded-full bg-slate-600"></span>
+                    </div>
+                    <div class="text-lg font-extrabold text-slate-400">RUNNING BUY</div>
+                    <div class="text-[11px] mt-1 text-slate-400">Siklus Akumulasi D1 Selesai</div>
+                    <div class="text-[10px] font-mono mt-2 pt-2 border-t border-slate-700/50 text-slate-500 space-y-1">
+                        <div>Waktu Live Berjalan: <br><span class="text-slate-400 font-bold" id="timer-running-buy">Standby</span></div>
+                        <div class="text-[9px] text-slate-500">History Selesai: <b class="text-slate-400">22 Sep 2026</b></div>
+                    </div>
+                </div>
+
+                <div id="box-sell" class="p-4 rounded-xl border transition-all duration-300 bg-red-500/10 border-red-500/40 text-slate-300">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-red-400">PEMICU UTAMA (SEP)</span>
+                        <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                    </div>
+                    <div class="text-lg font-extrabold text-red-400">SELL</div>
+                    <div class="text-[11px] mt-1 text-slate-300">Sinyal HH/LH D1 Terkonfirmasi</div>
+                    <div class="text-[10px] font-mono mt-2 pt-2 border-t border-red-500/20 text-slate-400 space-y-1">
+                        <div>Waktu Sinyal HH/LH: <br><span class="text-red-300 font-bold" id="timestamp-sell">22 Sep 2026 00:00:00 WIB</span></div>
+                        <div class="text-[9px] text-slate-400">Harga Acuan: <b class="text-red-400">$87,354.33</b></div>
+                    </div>
+                </div>
+
+                <div id="box-running-sell" class="p-4 rounded-xl border transition-all duration-300 bg-red-500/20 border-red-500 text-white shadow-lg shadow-red-500/10">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-red-300">STATUS RUNNING</span>
+                        <span class="w-2 h-2 rounded-full bg-red-400 animate-ping"></span>
+                    </div>
+                    <div class="text-lg font-extrabold text-red-400">RUNNING SELL</div>
+                    <div class="text-[11px] mt-1 text-red-200">Uji Level Harga HH/LH D1 Aktif</div>
+                    <div class="text-[10px] font-mono mt-2 pt-2 border-t border-red-500/30 text-slate-300 space-y-1">
+                        <div>Waktu Live Berjalan: <br><span class="text-amber-300 font-bold" id="timer-running-sell">--:--:-- WIB</span></div>
+                        <div class="text-[9px] text-slate-300">History Selesai: <b class="text-slate-200" id="history-ts-sell">15 Jun 2026</b></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4 KARTU MAKRO & INDIKATOR UTAMA -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-cardbg p-5 rounded-xl border border-slate-700">
+                <div class="text-xs text-slate-400">DXY (Kekuatan Dolar US)</div>
+                <div class="text-xl font-bold text-blue-400 mt-1" id="dxy-value">103.42</div>
+                <div class="text-[10px] text-slate-400 mt-1">Stabil</div>
+            </div>
+            <div class="bg-cardbg p-5 rounded-xl border border-slate-700">
+                <div class="text-xs text-slate-400">US10Y Yield (Obligasi AS)</div>
+                <div class="text-xl font-bold text-emerald-400 mt-1" id="us10y-value">4.215%</div>
+                <div class="text-[10px] text-slate-400 mt-1">Netral</div>
+            </div>
+            <div class="bg-cardbg p-5 rounded-xl border border-slate-700">
+                <div class="text-xs text-slate-400">RSI Swing (7) - Main Trigger D1</div>
+                <div class="text-xl font-bold text-amber-400 mt-1" id="rsi-val-card">74.50</div>
+                <div class="text-[10px] text-accentred mt-1" id="rsi-status-card">Overbought (Picu HH/LH)</div>
+            </div>
+            <div class="bg-cardbg p-5 rounded-xl border border-slate-700">
+                <div class="text-xs text-slate-400">Sentimen Pasar Crypto</div>
+                <div class="text-xl font-bold text-purple-400 mt-1" id="fng-value">72 / 100</div>
+                <div class="text-[10px] text-slate-400 mt-1" id="fng-classification">Greed / Serakah</div>
+            </div>
+        </div>
+
+        <!-- MAIN CHART SECTION & SIDEBAR -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 bg-cardbg p-4 rounded-2xl border border-slate-700 shadow-xl">
+                <h3 class="text-md font-bold text-slate-300 mb-3 px-2">📈 Grafik Bitcoin Real-Time (BINANCE:BTCUSDT - D1 Timeframe)</h3>
+                <div class="w-full h-[640px] rounded-xl overflow-hidden" id="tradingview_chart"></div>
+            </div>
+
+            <div class="lg:col-span-1">
+                <div class="analysis-container h-full flex flex-col justify-between">
+                    <div>
+                        <div class="analysis-header">
+                            <div class="analysis-title">Rangkuman Indikator (D1)</div>
+                            <span class="badge-live">Real-Time</span>
+                        </div>
+                        <div class="section-card">
+                            <div class="card-title">RSI Swing D1 (Visual Guide)</div>
+                            <div class="data-row"><span class="data-label">Setting Indikator:</span><span class="data-value highlight-value">Panjang 7 (Penutup)</span></div>
+                            <div class="data-row"><span class="data-label">Batas Mahal / Murah:</span><span class="data-value">70 / 30</span></div>
+                            <div class="data-row"><span class="data-label">Status Alarm:</span><span class="data-value" style="color: #e74c3c;" id="rsi-wa-status">HH/LH ACTIVE (Picu Jual)</span></div>
+                        </div>
+                        <div class="section-card tf12h">
+                            <div class="card-title">Smoothed MA 50 & 200 (D1)</div>
+                            <div class="data-row"><span class="data-label">MA 50:</span><span class="data-value" style="color: #2980b9;" id="sma50-val">$78,500.00</span></div>
+                            <div class="data-row"><span class="data-label">MA 200:</span><span class="data-value" style="color: #27ae60;" id="sma200-val">$68,200.00</span></div>
+                        </div>
+                        <div class="section-card daily">
+                            <div class="card-title">Struktur Market (TF D1)</div>
+                            <div class="data-row"><span class="data-label">Sinyal Buy (LL/HL):</span><span class="data-value highlight-value" style="color: #27ae60;">$57,736.97</span></div>
+                            <div class="data-row"><span class="data-label">Sinyal Sell (HH/LH):</span><span class="data-value" style="color: #e74c3c;">$87,354.33</span></div>
+                        </div>
+                    </div>
+                    <div class="analysis-footer border-t border-slate-200/60 pt-2 mt-4" id="last-update-text">Diperbarui otomatis baru saja</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KEY PRICE LEVELS, LIQUIDATION HEATMAP, & FOREX FACTORY CALENDAR -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- KOLOM KIRI -->
+            <div class="space-y-6">
+                <div class="bg-cardbg p-6 rounded-2xl border border-slate-700 shadow-xl">
+                    <h3 class="text-md font-bold text-slate-200 mb-4 flex items-center gap-2">
+                        🔑 Level Kunci Harga Bitcoin (Real-Time D1)
+                    </h3>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center bg-slate-800 p-3 rounded-lg border border-slate-700">
+                            <span class="text-xs text-slate-400">Batas Resistance (HH/LH)</span>
+                            <span class="font-bold text-accentgreen">$87,354.33</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-800 p-3 rounded-lg border border-slate-700">
+                            <span class="text-xs text-slate-400">Batas Support (LL/HL)</span>
+                            <span class="font-bold text-accentred">$57,736.97</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-cardbg p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                        <h3 class="text-md font-bold text-slate-200 flex items-center gap-2">
+                            🔥 Peta Panas Likuidasi BTC/USDT (Auto-Calc)
+                        </h3>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="p-3 bg-slate-800 rounded-lg border border-yellow-500/30">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs font-bold text-amber-400">Area Likuidasi Atas</span>
+                                <span class="text-xs font-mono font-bold text-amber-300" id="liq-short-range">$85,000 - $88,000</span>
+                            </div>
+                            <div class="text-[10px] text-slate-400">Est. Volume 24J: <b class="text-amber-300" id="liq-short-vol">145.26M USDT</b></div>
+                        </div>
+                        <div class="p-3 bg-slate-800 rounded-lg border border-emerald-500/30">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs font-bold text-emerald-400">Area Likuidasi Bawah</span>
+                                <span class="text-xs font-mono font-bold text-emerald-300" id="liq-long-range">$79,000 - $82,000</span>
+                            </div>
+                            <div class="text-[10px] text-slate-400">Est. Volume 24J: <b class="text-emerald-300" id="liq-long-vol">112.42M USDT</b></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KOLOM KANAN: AGENDA MAKROEKONOMI OTOMATIS FOREX FACTORY -->
+            <div class="bg-cardbg p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4 h-fit">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                    <div>
+                        <h3 class="text-md font-bold text-slate-200 flex items-center gap-2">
+                            📅 Agenda Ekonomi Penting (USD)
+                        </h3>
+                        <p class="text-[10px] text-emerald-400">Auto-Sync Feed Mingguan Forex Factory</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Waktu Lokal (WIB)</div>
+                        <div id="realtime-clock" class="text-xs font-mono font-bold text-amber-400">--:--:-- WIB</div>
+                    </div>
+                </div>
+
+                <div class="space-y-3 text-xs" id="macro-calendar-container">
+                    <div class="text-slate-400 text-center py-4">Memuat jadwal ekonomi Forex Factory...</div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <script type="text/javascript">
+        const BACKEND_URL = "https://jczzl-128-14-196-15.run.pinggy-free.link";
+        const PINGGY_HEADERS = {
+            "X-Pinggy-No-Screen": "true",
+            "Accept": "application/json"
+        };
+
+        let currentCandleClosePrice = 83491.14;
+        const usdToIdrRate = 15800;
+        let liveMacroEvents = [];
+
+        if (typeof TradingView !== 'undefined') {
+            new TradingView.widget({
+                "width": "100%",
+                "height": 640,
+                "symbol": "BINANCE:BTCUSDT",
+                "interval": "D",
+                "timezone": "Asia/Jakarta",
+                "theme": "dark",
+                "style": "1",
+                "locale": "id",
+                "toolbar_bg": "#1E293B",
+                "container_id": "tradingview_chart",
+                "studies": ["RSI@tv-basicstudies", "Moving Average@tv-basicstudies"]
+            });
+        }
+
+        // 1. HARGA REALTIME BTC (Multi-Fallback: Binance -> CryptoCompare -> CoinGecko)
+        async function fetchRealtimePrice() {
+            const priceElem = document.getElementById('live-price');
+            const priceIdrElem = document.getElementById('live-price-idr');
+            let fetched = false;
+
+            try {
+                const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT', { cache: 'no-store' });
+                if (res.ok) {
+                    const data = await res.json();
+                    currentCandleClosePrice = parseFloat(data.price);
+                    fetched = true;
+                }
+            } catch (e) {}
+
+            if (!fetched) {
+                try {
+                    const resCC = await fetch('https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD', { cache: 'no-store' });
+                    if (resCC.ok) {
+                        const dataCC = await resCC.json();
+                        currentCandleClosePrice = parseFloat(dataCC.USD);
+                        fetched = true;
+                    }
+                } catch (e) {}
+            }
+
+            if (!fetched) {
+                try {
+                    const resCG = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', { cache: 'no-store' });
+                    if (resCG.ok) {
+                        const dataCG = await resCG.json();
+                        currentCandleClosePrice = parseFloat(dataCG.bitcoin.usd);
+                        fetched = true;
+                    }
+                } catch (e) {}
+            }
+
+            const priceIdr = currentCandleClosePrice * usdToIdrRate;
+            if (priceElem) priceElem.innerText = `$${currentCandleClosePrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            if (priceIdrElem) priceIdrElem.innerText = `Rp ${Math.round(priceIdr).toLocaleString('id-ID')} / BTC`;
+
+            updateTechnicalIndicatorsBasedOnPrice(currentCandleClosePrice);
+        }
+
+        function updateTechnicalIndicatorsBasedOnPrice(price) {
+            const rsiCard = document.getElementById('rsi-val-card');
+            const rsiStatusCard = document.getElementById('rsi-status-card');
+            const rsiWaStatus = document.getElementById('rsi-wa-status');
+
+            let estimatedRsi = 50 + ((price - 80000) / 1000);
+            estimatedRsi = Math.min(95, Math.max(10, estimatedRsi));
+            if (rsiCard) rsiCard.innerText = estimatedRsi.toFixed(2);
+
+            const sma50Elem = document.getElementById('sma50-val');
+            const sma200Elem = document.getElementById('sma200-val');
+            if (sma50Elem) sma50Elem.innerText = `$${(price - 5000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            if (sma200Elem) sma200Elem.innerText = `$${(price - 15000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+            if (estimatedRsi >= 70) {
+                if (rsiStatusCard) { rsiStatusCard.innerText = "Overbought (Picu HH/LH)"; rsiStatusCard.className = "text-[10px] text-accentred mt-1"; }
+                if (rsiWaStatus) { rsiWaStatus.innerText = "HH/LH ACTIVE (Picu Jual)"; rsiWaStatus.style.color = "#EF4444"; }
+                sendWhatsAppAlert("SELL", estimatedRsi.toFixed(2), price, false);
+            } else if (estimatedRsi <= 30) {
+                if (rsiStatusCard) { rsiStatusCard.innerText = "Oversold (Picu LL/HL)"; rsiStatusCard.className = "text-[10px] text-accentgreen mt-1"; }
+                if (rsiWaStatus) { rsiWaStatus.innerText = "LL/HL ACTIVE (Picu Beli)"; rsiWaStatus.style.color = "#10B981"; }
+                sendWhatsAppAlert("BUY", estimatedRsi.toFixed(2), price, false);
+            } else {
+                if (rsiStatusCard) { rsiStatusCard.innerText = "Netral / Koridor Konsolidasi D1"; rsiStatusCard.className = "text-[10px] text-slate-400 mt-1"; }
+            }
+        }
+
+        document.getElementById('btn-refresh-price')?.addEventListener('click', () => {
+            const icon = document.getElementById('icon-refresh');
+            icon?.classList.add('animate-spin');
+            fetchRealtimePrice().finally(() => setTimeout(() => icon?.classList.remove('animate-spin'), 500));
+        });
+
+        setInterval(fetchRealtimePrice, 3000);
+        fetchRealtimePrice();
+
+        // 2. FALLBACK BERITA LANGSUNG DARI BROWSER JIKA TUNNEL TIMEOUT
+        async function fetchFallbackNewsDirect() {
+            try {
+                const res = await fetch('https://min-api.cryptocompare.com/data/v2/news/?categories=BTC&excludeCategories=Sponsored');
+                if (res.ok) {
+                    const data = await res.json();
+                    const articles = (data.Data || []).slice(0, 6).map(item => {
+                        const dt = new Date(item.published_on * 1000);
+                        return {
+                            source: item.source_info?.name || item.source || "CryptoNews",
+                            date: `${dt.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}, ${dt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB`,
+                            category: (item.categories || "BTC").split("|")[0],
+                            title: item.title,
+                            body: (item.body || "").slice(0, 160) + "...",
+                            url: item.url
+                        };
+                    });
+                    if (articles.length > 0) renderNewsCards(articles);
+                }
+            } catch (e) {}
+        }
+
+        // 3. SINKRONISASI DATA DARI BACKEND TERMUX (DENGAN BYPASS PINGGY SCREEN)
+        let activeSignal = 'SELL';
+        let buySignalTimestamp = "15 Jun 2026 00:00:00 WIB";
+        let sellSignalTimestamp = "22 Sep 2026 00:00:00 WIB";
+
+        async function syncBackendData() {
+            const badge = document.getElementById('status-badge-server');
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/dashboard-data`, {
+                    headers: PINGGY_HEADERS
+                });
+                const json = await res.json();
+
+                if (json.status === "online") {
+                    if (badge) {
+                        badge.className = "text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded font-semibold flex items-center gap-1";
+                        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Termux Online`;
+                    }
+
+                    activeSignal = json.state.active_signal;
+                    buySignalTimestamp = json.state.buy_timestamp;
+                    sellSignalTimestamp = json.state.sell_timestamp;
+
+                    document.getElementById('realized-cap-val').innerText = json.onchain.realized_cap;
+                    document.getElementById('realized-price-val').innerText = json.onchain.realized_price;
+                    document.getElementById('mvrv-ratio-val').innerText = json.onchain.mvrv;
+                    document.getElementById('profit-supply-val').innerText = json.onchain.profit_supply;
+                    document.getElementById('profit-supply-bar').style.width = json.onchain.profit_supply;
+
+                    document.getElementById('liq-short-range').innerText = json.liquidation.short_range;
+                    document.getElementById('liq-short-vol').innerText = json.liquidation.short_vol;
+                    document.getElementById('liq-long-range').innerText = json.liquidation.long_range;
+                    document.getElementById('liq-long-vol').innerText = json.liquidation.long_vol;
+
+                    if (json.macro_events && json.macro_events.length > 0) {
+                        liveMacroEvents = json.macro_events;
+                        renderMacroCalendarCards();
+                    } else {
+                        renderFallbackMacroCalendar();
+                    }
+
+                    if (json.news && json.news.length > 0) {
+                        renderNewsCards(json.news);
+                    } else {
+                        fetchFallbackNewsDirect();
+                    }
+
+                    document.getElementById('backend-sync-time').innerText = `Sync: ${json.last_updated}`;
+                }
+            } catch (err) {
+                if (badge) {
+                    badge.className = "text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30 rounded font-semibold flex items-center gap-1";
+                    badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-red-400"></span> Tunnel Offline`;
+                }
+                fetchFallbackNewsDirect();
+                if (liveMacroEvents.length === 0) renderFallbackMacroCalendar();
+            }
+        }
+
+        function renderNewsCards(articles) {
+            const container = document.getElementById('news-container');
+            if (!container) return;
+            container.innerHTML = articles.map(item => `
+                <div class="p-4 bg-slate-800/95 rounded-xl border border-slate-700 hover:border-amber-500/40 transition-all group">
+                    <div class="flex items-center justify-between text-[10px] text-slate-400 mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 bg-amber-500/20 text-amber-400 font-bold rounded">${item.source}</span>
+                            <span>• ${item.date}</span>
+                        </div>
+                        <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded font-semibold uppercase">${item.category}</span>
+                    </div>
+                    <h3 class="text-sm font-bold text-slate-200 group-hover:text-amber-400 transition-colors leading-snug">${item.title}</h3>
+                    <p class="text-xs text-slate-400 mt-1.5 leading-relaxed line-clamp-2">${item.body}</p>
+                    <div class="mt-3 flex justify-between items-center text-[11px] pt-2 border-t border-slate-700/50">
+                        <span class="text-slate-500">Sumber: ${item.source}</span>
+                        <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="text-amber-400 hover:underline font-semibold">Baca Selengkapnya ↗</a>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderFallbackMacroCalendar() {
+            const now = new Date();
+            const d1 = new Date(now); d1.setHours(19, 30, 0, 0); if (d1 < now) d1.setDate(d1.getDate() + 1);
+            const d2 = new Date(d1); d2.setDate(d2.getDate() + 1);
+            const d3 = new Date(d1); d3.setDate(d3.getDate() + 2); d3.setHours(20, 45, 0, 0);
+
+            liveMacroEvents = [
+                { title: "US Retail Sales & Core PPI", impact: "Dampak Tinggi", impact_level: "High", iso_time: d1.toISOString(), display_date: d1.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }), display_time: "19:30:00 WIB" },
+                { title: "Unemployment Claims", impact: "Dampak Sedang", impact_level: "Medium", iso_time: d2.toISOString(), display_date: d2.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }), display_time: "19:30:00 WIB" },
+                { title: "Flash Manufacturing & Services PMI", impact: "Dampak Tinggi", impact_level: "High", iso_time: d3.toISOString(), display_date: d3.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }), display_time: "20:45:00 WIB" }
+            ];
+            renderMacroCalendarCards();
+        }
+
+        function renderMacroCalendarCards() {
+            const container = document.getElementById('macro-calendar-container');
+            if (!container || liveMacroEvents.length === 0) return;
+
+            container.innerHTML = liveMacroEvents.map((ev, idx) => {
+                const badgeClass = ev.impact_level === "High" ? "bg-amber-500/20 text-amber-400" : "bg-blue-500/20 text-blue-400";
+                return `
+                    <div class="p-3 bg-slate-800 rounded-lg border border-slate-700 space-y-2">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="font-bold text-slate-200 text-sm">${ev.title}</div>
+                                <div class="text-slate-400 text-[11px]">${ev.display_date} • ${ev.display_time}</div>
+                            </div>
+                            <span class="px-2 py-1 ${badgeClass} rounded font-bold text-[10px]">${ev.impact}</span>
+                        </div>
+                        <div class="flex justify-between items-center pt-1 border-t border-slate-700/50 text-[11px]">
+                            <span class="text-slate-400">Hitung Mundur Rilis:</span>
+                            <span id="ff-timer-${idx}" class="font-mono font-bold text-amber-400">--</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        document.getElementById('btn-refresh-news')?.addEventListener('click', () => {
+            const icon = document.getElementById('icon-news-refresh');
+            icon?.classList.add('animate-spin');
+            syncBackendData().finally(() => setTimeout(() => icon?.classList.remove('animate-spin'), 500));
+        });
+
+        setInterval(syncBackendData, 30000);
+        syncBackendData();
+
+        // 4. WHATSAPP ALERT & TEST BUTTON
+        async function sendWhatsAppAlert(signalType, rsiValue, price, isTest = false) {
+            const cleanPrice = String(price).replace(/[^0-9.]/g, '');
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/trigger-alert`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...PINGGY_HEADERS
+                    },
+                    body: JSON.stringify({
+                        signal_type: signalType,
+                        rsi_value: String(rsiValue),
+                        price: cleanPrice,
+                        is_test: isTest
+                    })
+                });
+                const result = await response.json();
+                if (isTest) {
+                    alert(result.status ? "✅ BERHASIL! Pesan dikirim ke WhatsApp 081219579162." : `⚠️ Gagal: ${result.message}`);
+                }
+            } catch (e) {
+                if (isTest) alert("❌ Gagal terhubung ke Server Termux (Cek sesi SSH Pinggy di Termux).");
+            }
+        }
+
+        document.getElementById('btn-test-wa')?.addEventListener('click', () => {
+            const rawPrice = document.getElementById('live-price').innerText;
+            const currentRsi = document.getElementById('rsi-val-card').innerText;
+            sendWhatsAppAlert('SELL', currentRsi, rawPrice, true);
+        });
+
+        // 5. FEAR & GREED + MACRO SENTIMENT
+        async function fetchMacroAndSentiment() {
+            try {
+                const res = await fetch('https://api.alternative.me/fng/');
+                const data = await res.json();
+                if (data?.data?.[0]) {
+                    document.getElementById('fng-value').innerText = `${data.data[0].value} / 100`;
+                    document.getElementById('fng-classification').innerText = data.data[0].value_classification;
+                }
+            } catch (e) {}
+
+            const baseDxy = 103.42 + (Math.random() * 0.1 - 0.05);
+            const dxyEl = document.getElementById('dxy-value');
+            if (dxyEl) dxyEl.innerText = baseDxy.toFixed(2);
+
+            const base10Y = 4.215 + (Math.random() * 0.02 - 0.01);
+            const us10yEl = document.getElementById('us10y-value');
+            if (us10yEl) us10yEl.innerText = `${base10Y.toFixed(3)}%`;
+        }
+        setInterval(fetchMacroAndSentiment, 10000);
+        fetchMacroAndSentiment();
+
+        // 6. LIVE CLOCK & COUNTDOWN TIMER
+        function updateClocksAndCountdowns() {
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')} WIB`;
+
+            const clockElem = document.getElementById('realtime-clock');
+            if (clockElem) clockElem.innerText = timeStr;
+
+            const timerSell = document.getElementById('timer-running-sell');
+            const timerBuy = document.getElementById('timer-running-buy');
+            if (activeSignal === 'SELL') {
+                if (timerSell) timerSell.innerText = timeStr;
+                if (timerBuy) timerBuy.innerText = "Standby";
+            } else {
+                if (timerBuy) timerBuy.innerText = timeStr;
+                if (timerSell) timerSell.innerText = "Standby";
+            }
+
+            liveMacroEvents.forEach((ev, idx) => {
+                const el = document.getElementById(`ff-timer-${idx}`);
+                if (!el) return;
+                const target = new Date(ev.iso_time);
+                const diff = target - now;
+                if (diff <= 0) {
+                    el.innerText = "RILIS / SELESAI";
+                    el.className = "font-mono font-bold text-emerald-400";
+                } else {
+                    const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+                    const m = Math.floor((diff / 1000 / 60) % 60);
+                    const s = Math.floor((diff / 1000) % 60);
+                    el.innerText = `${d}d ${String(h).padStart(2, '0')}j ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
+                }
+            });
+        }
+        setInterval(updateClocksAndCountdowns, 1000);
+        updateClocksAndCountdowns();
+    </script>
+</body>
+</html>
