@@ -372,15 +372,16 @@
 
     <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
     <script type="text/javascript">
-        const BACKEND_URL = "https://recognised-high-dip-beverages.trycloudflare.com";
-        const PINGGY_HEADERS = {
-            "X-Pinggy-No-Screen": "true",
+        const BACKEND_URL = "https://recognised-high-dip-beverages.trycloudflare.com".replace(/\/+$/, "");
+        const DEFAULT_HEADERS = {
             "Accept": "application/json"
         };
 
         let currentCandleClosePrice = 83491.14;
         const usdToIdrRate = 15800;
         let liveMacroEvents = [];
+        let lastAutoAlertTime = 0;
+        const AUTO_ALERT_COOLDOWN_MS = 15 * 60 * 1000; // Jeda 15 menit agar tidak spam API WA
 
         if (typeof TradingView !== 'undefined') {
             new TradingView.widget({
@@ -500,7 +501,7 @@
             } catch (e) {}
         }
 
-        // 3. SINKRONISASI DATA DARI BACKEND TERMUX (DENGAN BYPASS PINGGY SCREEN)
+        // 3. SINKRONISASI DATA DARI BACKEND TERMUX
         let activeSignal = 'SELL';
         let buySignalTimestamp = "15 Jun 2026 00:00:00 WIB";
         let sellSignalTimestamp = "22 Sep 2026 00:00:00 WIB";
@@ -509,7 +510,8 @@
             const badge = document.getElementById('status-badge-server');
             try {
                 const res = await fetch(`${BACKEND_URL}/api/dashboard-data`, {
-                    headers: PINGGY_HEADERS
+                    headers: DEFAULT_HEADERS,
+                    cache: 'no-store'
                 });
                 const json = await res.json();
 
@@ -630,13 +632,21 @@
 
         // 4. WHATSAPP ALERT & TEST BUTTON
         async function sendWhatsAppAlert(signalType, rsiValue, price, isTest = false) {
+            const now = Date.now();
+            if (!isTest && (now - lastAutoAlertTime < AUTO_ALERT_COOLDOWN_MS)) {
+                return;
+            }
+            if (!isTest) {
+                lastAutoAlertTime = now;
+            }
+
             const cleanPrice = String(price).replace(/[^0-9.]/g, '');
             try {
                 const response = await fetch(`${BACKEND_URL}/api/trigger-alert`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        ...PINGGY_HEADERS
+                        ...DEFAULT_HEADERS
                     },
                     body: JSON.stringify({
                         signal_type: signalType,
@@ -645,12 +655,15 @@
                         is_test: isTest
                     })
                 });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
                 const result = await response.json();
                 if (isTest) {
-                    alert(result.status ? "✅ BERHASIL! Pesan dikirim ke WhatsApp 081219579162." : `⚠️ Gagal: ${result.message}`);
+                    alert(result.status ? "✅ BERHASIL! Pesan dikirim ke WhatsApp 081219579162." : `⚠️ Gagal dari API WA: ${result.message}`);
                 }
             } catch (e) {
-                if (isTest) alert("❌ Gagal terhubung ke Server Termux (Cek sesi SSH Pinggy di Termux).");
+                if (isTest) alert(`❌ Gagal terhubung ke Server Termux (${e.message}). Pastikan Uvicorn & Cloudflare Tunnel aktif.`);
             }
         }
 
